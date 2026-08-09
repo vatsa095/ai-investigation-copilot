@@ -1,7 +1,7 @@
 export async function GET() {
   try {
     const response = await fetch(
-      "http://192.168.0.102:8000/analytics/"
+      "https://ai-investigation-copilot.onrender.com/analytics/"
     );
 
     const data = await response.json();

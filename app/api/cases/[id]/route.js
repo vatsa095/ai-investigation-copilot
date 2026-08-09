@@ -5,7 +5,7 @@ export async function GET(request, { params }) {
     const { id } = await params;
 
     const response = await fetch(
-      `http://192.168.0.102:8000/cases/${id}`
+      `https://ai-investigation-copilot.onrender.com/cases/${id}`
     );
 
     const data = await response.json();

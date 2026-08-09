@@ -10,11 +10,7 @@ export async function GET(request) {
       );
     }
 
-    const response = await fetch(
-      `http://192.168.0.102:8000/ai/investigate/${encodeURIComponent(
-        suspect
-      )}`
-    );
+    const response = await fetch(`https://ai-investigation-copilot.onrender.com/search/?query=${encodeURIComponent(query)}`)
 
     const data = await response.json();
 
