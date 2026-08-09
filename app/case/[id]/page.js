@@ -10,28 +10,28 @@ export default function CaseDetailsPage() {
   const [caseData, setCaseData] = useState(null);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    const loadCase = async () => {
-      try {
-        const response = await fetch(`/api/cases/${params.id}`);
+useEffect(() => {
+  const loadCase = async () => {
+    try {
+      const response = await fetch(`/api/cases?id=${params.id}`);
 
-        if (!response.ok) {
-          throw new Error("Failed to load case");
-        }
-
-        const data = await response.json();
-        setCaseData(data);
-      } catch (error) {
-        console.error("CASE ERROR:", error);
-      } finally {
-        setLoading(false);
+      if (!response.ok) {
+        throw new Error("Failed to load case");
       }
-    };
 
-    if (params.id) {
-      loadCase();
+      const data = await response.json();
+      setCaseData(data);
+    } catch (error) {
+      console.error("CASE ERROR:", error);
+    } finally {
+      setLoading(false);
     }
-  }, [params.id]);
+  };
+
+  if (params.id) {
+    loadCase();
+  }
+}, [params.id]);
 
   if (loading) {
     return (

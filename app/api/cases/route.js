@@ -28,9 +28,41 @@ export async function POST(request) {
         detail: "Failed to connect to backend",
         error: error.message,
       },
+      { status: 500 }
+    );
+  }
+}
+
+export async function GET(request) {
+  try {
+    const { searchParams } = new URL(request.url);
+    const id = searchParams.get("id");
+
+    if (!id) {
+      return NextResponse.json(
+        { detail: "Case ID is required" },
+        { status: 400 }
+      );
+    }
+
+    const response = await fetch(
+      `https://ai-investigation-copilot.onrender.com/cases/${encodeURIComponent(id)}`
+    );
+
+    const data = await response.json();
+
+    return NextResponse.json(data, {
+      status: response.status,
+    });
+  } catch (error) {
+    console.error("GET CASE API ERROR:", error);
+
+    return NextResponse.json(
       {
-        status: 500,
-      }
+        detail: "Failed to connect to backend",
+        error: error.message,
+      },
+      { status: 500 }
     );
   }
 }
