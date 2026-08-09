@@ -10,7 +10,9 @@ export async function GET(request) {
       );
     }
 
-    const response = await fetch(`https://ai-investigation-copilot.onrender.com/search/?query=${encodeURIComponent(query)}`)
+const response = await fetch(
+  `https://ai-investigation-copilot.onrender.com/search/?query=${encodeURIComponent(suspect)}`
+);
 
     const data = await response.json();
 
