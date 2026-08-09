@@ -6,12 +6,10 @@ from app.ml.db_adapter import get_ai_cases
 from app.ml.model import InvestigationModel
 from app.ml.ai_service import AIService
 
-
 router = APIRouter(
     prefix="/ai",
     tags=["AI Investigation"]
 )
-
 
 @router.get("/investigate/{suspect_name}")
 def investigate_suspect(
