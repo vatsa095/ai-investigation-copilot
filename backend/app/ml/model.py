@@ -918,7 +918,6 @@ def investigation_assessment(
                 3
             )
     )
-
     return {
         "suspect_name": suspect_name,
         "observations": observations,
@@ -926,6 +925,7 @@ def investigation_assessment(
         "connections": connections,
         "patterns": patterns
     }
+
 
     # =========================================================
     # COMPLETE INVESTIGATION
@@ -941,14 +941,9 @@ def investigation_assessment(
         )
 
         if not analysis:
-
             return {
-
-                "analysis":
-                    None,
-
-                "assessment":
-                    None
+                "analysis": None,
+                "assessment": None
             }
 
         assessment = self.investigation_assessment(
@@ -956,13 +951,10 @@ def investigation_assessment(
         )
 
         return {
-
-            "analysis":
-                analysis,
-
-            "assessment":
-                assessment
+            "analysis": analysis,
+            "assessment": assessment
         }
+
 
     # =========================================================
     # EVIDENCE ANALYSIS
@@ -990,7 +982,6 @@ def investigation_assessment(
             )
 
             if evidence:
-
                 evidence_counter[
                     evidence
                 ] += 1
