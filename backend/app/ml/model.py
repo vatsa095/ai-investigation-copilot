@@ -684,266 +684,248 @@ class InvestigationModel:
     # NEXT-BEST ACTIONS
     # =========================================================
 
-    def investigation_assessment(
-        self,
+def investigation_assessment(
+    self,
+    suspect_name
+):
+
+    analysis = self.link_analysis(
         suspect_name
-    ):
+    )
 
-        analysis = self.link_analysis(
-            suspect_name
+    if not analysis:
+        return None
+
+    patterns = self.pattern_analysis(
+        suspect_name
+    )
+
+    if patterns is None:
+        patterns = {
+            "total_linked_cases": 0,
+            "crime_patterns": {},
+            "location_patterns": {},
+            "phone_patterns": {},
+            "vehicle_patterns": {}
+        }
+
+    connections = self.connection_analysis(
+        suspect_name
+    )
+
+    observations = []
+    recommendations = []
+
+    # -----------------------------------------------------
+    # CASE COUNT
+    # -----------------------------------------------------
+
+    if analysis["total_cases"] >= 3:
+
+        observations.append(
+            f"The subject is associated with "
+            f"{analysis['total_cases']} cases."
         )
 
-        if not analysis:
-            return None
+        recommendations.append({
+            "priority": "HIGH",
+            "action":
+                "Review the subject's previous cases "
+                "for recurring investigative patterns.",
+            "reason":
+                "Multiple linked cases were identified."
+        })
 
-        patterns = self.pattern_analysis(
-            suspect_name
-        )
+    # -----------------------------------------------------
+    # CRIME PATTERNS
+    # -----------------------------------------------------
 
-        connections = self.connection_analysis(
-            suspect_name
-        )
+    for crime, count in patterns[
+        "crime_patterns"
+    ].items():
 
-        observations = []
-        recommendations = []
-
-        # -----------------------------------------------------
-        # CASE COUNT
-        # -----------------------------------------------------
-
-        if analysis["total_cases"] >= 3:
+        if count >= 2:
 
             observations.append(
-                f"The subject is associated with "
-                f"{analysis['total_cases']} cases."
+                f"{crime} appears in "
+                f"{count} linked cases."
             )
 
             recommendations.append({
-
                 "priority":
-                    "HIGH",
+                    "HIGH"
+                    if count >= 4
+                    else "MEDIUM",
 
                 "action":
-                    "Review the subject's previous cases "
-                    "for recurring investigative patterns.",
+                    f"Compare evidence and modus operandi "
+                    f"across the {crime} cases.",
 
                 "reason":
-                    "Multiple linked cases were identified."
+                    f"A repeated {crime} pattern was detected "
+                    f"across {count} cases."
             })
 
-        # -----------------------------------------------------
-        # CRIME PATTERNS
-        # -----------------------------------------------------
+    # -----------------------------------------------------
+    # LOCATION
+    # -----------------------------------------------------
 
-        for crime, count in patterns[
-            "crime_patterns"
-        ].items():
+    for location, count in patterns[
+        "location_patterns"
+    ].items():
 
-            if count >= 2:
+        if count >= 2:
 
-                observations.append(
-                    f"{crime} appears in "
-                    f"{count} linked cases."
-                )
-
-                recommendations.append({
-
-                    "priority":
-                        "HIGH"
-                        if count >= 4
-                        else "MEDIUM",
-
-                    "action":
-                        f"Compare evidence and modus operandi "
-                        f"across the {crime} cases.",
-
-                    "reason":
-                        f"A repeated {crime} pattern was detected "
-                        f"across {count} cases."
-                })
-
-        # -----------------------------------------------------
-        # LOCATION
-        # -----------------------------------------------------
-
-        for location, count in patterns[
-            "location_patterns"
-        ].items():
-
-            if count >= 2:
-
-                observations.append(
-                    f"{location} appears in "
-                    f"{count} linked cases."
-                )
-
-                recommendations.append({
-
-                    "priority":
-                        "MEDIUM",
-
-                    "action":
-                        f"Review CCTV and other records around "
-                        f"{location}.",
-
-                    "reason":
-                        f"The location appears in "
-                        f"{count} linked cases."
-                })
-
-        # -----------------------------------------------------
-        # PHONE
-        # -----------------------------------------------------
-
-        for phone, count in patterns[
-            "phone_patterns"
-        ].items():
-
-            if count >= 2:
-
-                observations.append(
-                    f"Phone number {phone} is associated "
-                    f"with {count} linked cases."
-                )
-
-                recommendations.append({
-
-                    "priority":
-                        "HIGH",
-
-                    "action":
-                        f"Review available call records "
-                        f"for {phone}.",
-
-                    "reason":
-                        f"The identifier appears across "
-                        f"{count} linked cases."
-                })
-
-        # -----------------------------------------------------
-        # VEHICLE
-        # -----------------------------------------------------
-
-        for vehicle, count in patterns[
-            "vehicle_patterns"
-        ].items():
-
-            if count >= 2:
-
-                observations.append(
-                    f"Vehicle {vehicle} is associated "
-                    f"with {count} linked cases."
-                )
-
-                recommendations.append({
-
-                    "priority":
-                        "MEDIUM",
-
-                    "action":
-                        f"Compare CCTV or vehicle sightings "
-                        f"for {vehicle}.",
-
-                    "reason":
-                        f"The vehicle appears across "
-                        f"{count} linked cases."
-                })
-
-        # -----------------------------------------------------
-        # SHARED VEHICLE DETECTION
-        # -----------------------------------------------------
-
-        shared_vehicle_people = {}
-
-        for case in connections:
-
-            vehicle = case.get(
-                "vehicle_number"
+            observations.append(
+                f"{location} appears in "
+                f"{count} linked cases."
             )
 
-            person = case.get(
-                "suspect_name"
+            recommendations.append({
+                "priority": "MEDIUM",
+
+                "action":
+                    f"Review CCTV and other records around "
+                    f"{location}.",
+
+                "reason":
+                    f"The location appears in "
+                    f"{count} linked cases."
+            })
+
+    # -----------------------------------------------------
+    # PHONE
+    # -----------------------------------------------------
+
+    for phone, count in patterns[
+        "phone_patterns"
+    ].items():
+
+        if count >= 2:
+
+            observations.append(
+                f"Phone number {phone} is associated "
+                f"with {count} linked cases."
             )
 
-            if not vehicle or not person:
-                continue
+            recommendations.append({
+                "priority": "HIGH",
 
-            if person.lower() == suspect_name.lower():
-                continue
+                "action":
+                    f"Review available call records "
+                    f"for {phone}.",
 
-            shared_vehicle_people.setdefault(
-                vehicle,
-                set()
-            ).add(person)
+                "reason":
+                    f"The identifier appears across "
+                    f"{count} linked cases."
+            })
 
-        for vehicle, people in shared_vehicle_people.items():
+    # -----------------------------------------------------
+    # VEHICLE
+    # -----------------------------------------------------
 
-            if people:
+    for vehicle, count in patterns[
+        "vehicle_patterns"
+    ].items():
 
-                people_text = ", ".join(
-                    sorted(people)
-                )
+        if count >= 2:
 
-                observations.append(
-                    f"Vehicle {vehicle} is also "
-                    f"associated with other persons: "
-                    f"{people_text}."
-                )
+            observations.append(
+                f"Vehicle {vehicle} is associated "
+                f"with {count} linked cases."
+            )
 
-                recommendations.append({
+            recommendations.append({
+                "priority": "MEDIUM",
 
-                    "priority":
-                        "HIGH",
+                "action":
+                    f"Compare CCTV or vehicle sightings "
+                    f"for {vehicle}.",
 
-                    "action":
-                        f"Investigate the shared use of "
-                        f"vehicle {vehicle} across the "
-                        f"connected persons.",
+                "reason":
+                    f"The vehicle appears across "
+                    f"{count} linked cases."
+            })
 
-                    "reason":
-                        f"The vehicle links the subject "
-                        f"to {people_text}."
-                })
+    # -----------------------------------------------------
+    # SHARED VEHICLE DETECTION
+    # -----------------------------------------------------
 
-        # -----------------------------------------------------
-        # SORT RECOMMENDATIONS
-        # -----------------------------------------------------
+    shared_vehicle_people = {}
 
-        priority_order = {
+    for case in connections:
 
-            "HIGH": 1,
-
-            "MEDIUM": 2,
-
-            "LOW": 3
-        }
-
-        recommendations.sort(
-
-            key=lambda x:
-                priority_order.get(
-                    x["priority"],
-                    3
-                )
+        vehicle = case.get(
+            "vehicle_number"
         )
 
-        return {
+        person = case.get(
+            "suspect_name"
+        )
 
-            "suspect_name":
-                suspect_name,
+        if not vehicle or not person:
+            continue
 
-            "observations":
-                observations,
+        if person.lower() == suspect_name.lower():
+            continue
 
-            "recommendations":
-                recommendations,
+        shared_vehicle_people.setdefault(
+            vehicle,
+            set()
+        ).add(person)
 
-            "connections":
-                connections,
+    for vehicle, people in shared_vehicle_people.items():
 
-            "patterns":
-                patterns
-        }
+        if people:
+
+            people_text = ", ".join(
+                sorted(people)
+            )
+
+            observations.append(
+                f"Vehicle {vehicle} is also "
+                f"associated with other persons: "
+                f"{people_text}."
+            )
+
+            recommendations.append({
+                "priority": "HIGH",
+
+                "action":
+                    f"Investigate the shared use of "
+                    f"vehicle {vehicle} across the "
+                    f"connected persons.",
+
+                "reason":
+                    f"The vehicle links the subject "
+                    f"to {people_text}."
+            })
+
+    # -----------------------------------------------------
+    # SORT RECOMMENDATIONS
+    # -----------------------------------------------------
+
+    priority_order = {
+        "HIGH": 1,
+        "MEDIUM": 2,
+        "LOW": 3
+    }
+
+    recommendations.sort(
+        key=lambda x:
+            priority_order.get(
+                x["priority"],
+                3
+            )
+    )
+
+    return {
+        "suspect_name": suspect_name,
+        "observations": observations,
+        "recommendations": recommendations,
+        "connections": connections,
+        "patterns": patterns
+    }
 
     # =========================================================
     # COMPLETE INVESTIGATION
