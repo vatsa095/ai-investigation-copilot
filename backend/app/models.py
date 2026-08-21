@@ -332,7 +332,7 @@ class Associate(Base):
 
 
 # ============================================================
-# TIMELINE TABLE
+# TIMELINE / MOVEMENT EVENTS
 # ============================================================
 
 class Timeline(Base):
@@ -346,13 +346,49 @@ class Timeline(Base):
 
     case_id = Column(
         Integer,
-        ForeignKey("cases.id")
+        ForeignKey("cases.id"),
+        nullable=False
     )
 
-    event_time = Column(DateTime)
+    event_time = Column(
+        DateTime
+    )
 
-    event = Column(Text)
+    # crime / cctv / vehicle / phone / witness / other
+    event_type = Column(
+        String,
+        default="other"
+    )
 
+    # Description of what happened
+    event = Column(
+        Text
+    )
+
+    # Location of the event
+    location = Column(
+        String
+    )
+
+    # Coordinates for the real map
+    latitude = Column(
+        String
+    )
+
+    longitude = Column(
+        String
+    )
+
+    # CCTV / ANPR / Phone Record / Witness etc.
+    source = Column(
+        String
+    )
+
+    # HIGH / MEDIUM / LOW
+    confidence = Column(
+        String,
+        default="MEDIUM"
+    )
 
 # ============================================================
 # INVESTIGATION NOTES

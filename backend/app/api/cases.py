@@ -3,7 +3,12 @@ from sqlalchemy.orm import Session
 
 from app.database import get_db
 
-from app.schemas import CaseCreate, CaseResponse
+from app.schemas import (
+    CaseCreate,
+    CaseResponse,
+    TimelineCreate,
+    TimelineResponse
+)
 
 from app.models import (
     Case,
@@ -29,16 +34,23 @@ router = APIRouter(
 )
 
 
-# -----------------------------
+# ============================================================
 # CREATE CASE
-# -----------------------------
+# ============================================================
 
-@router.post("/", response_model=CaseResponse)
+@router.post(
+    "/",
+    response_model=CaseResponse
+)
 def add_case(
     case: CaseCreate,
     db: Session = Depends(get_db)
 ):
-    new_case = create_case(db, case)
+
+    new_case = create_case(
+        db,
+        case
+    )
 
     return read_case(
         new_case.id,
@@ -46,28 +58,36 @@ def add_case(
     )
 
 
-# -----------------------------
+# ============================================================
 # GET ALL CASES
-# -----------------------------
+# ============================================================
 
-@router.get("/", response_model=list[CaseResponse])
+@router.get(
+    "/",
+    response_model=list[CaseResponse]
+)
 def read_cases(
     db: Session = Depends(get_db)
 ):
+
     return get_all_cases(db)
 
 
-# -----------------------------
-# GET CASE BY ID
-# -----------------------------
+# ============================================================
+# ADD TIMELINE / MOVEMENT EVENT
+# ============================================================
 
-@router.get("/{case_id}", response_model=CaseResponse)
-def read_case(
+@router.post(
+    "/{case_id}/timeline",
+    response_model=TimelineResponse
+)
+def add_timeline_event(
     case_id: int,
+    timeline: TimelineCreate,
     db: Session = Depends(get_db)
 ):
 
-    # Find case
+    # Check that the case exists
     case = db.query(Case).filter(
         Case.id == case_id
     ).first()
@@ -78,9 +98,90 @@ def read_case(
             detail="Case not found"
         )
 
-    # -----------------------------
+    # Create timeline event
+    new_event = Timeline(
+        case_id=case_id,
+        event_time=timeline.event_time,
+        event_type=timeline.event_type,
+        event=timeline.event,
+        location=timeline.location,
+        latitude=timeline.latitude,
+        longitude=timeline.longitude,
+        source=timeline.source,
+        confidence=timeline.confidence
+    )
+
+    db.add(new_event)
+    db.commit()
+    db.refresh(new_event)
+
+    return new_event
+
+
+# ============================================================
+# GET CASE MOVEMENT TIMELINE
+# ============================================================
+
+@router.get(
+    "/{case_id}/timeline",
+    response_model=list[TimelineResponse]
+)
+def get_case_timeline(
+    case_id: int,
+    db: Session = Depends(get_db)
+):
+
+    # Check that the case exists
+    case = db.query(Case).filter(
+        Case.id == case_id
+    ).first()
+
+    if not case:
+        raise HTTPException(
+            status_code=404,
+            detail="Case not found"
+        )
+
+    # Get events in chronological order
+    timeline = db.query(Timeline).filter(
+        Timeline.case_id == case_id
+    ).order_by(
+        Timeline.event_time.asc()
+    ).all()
+
+    return timeline
+
+
+# ============================================================
+# GET CASE BY ID
+# ============================================================
+
+@router.get(
+    "/{case_id}",
+    response_model=CaseResponse
+)
+def read_case(
+    case_id: int,
+    db: Session = Depends(get_db)
+):
+
+    # --------------------------------------------------------
+    # FIND CASE
+    # --------------------------------------------------------
+
+    case = db.query(Case).filter(
+        Case.id == case_id
+    ).first()
+
+    if not case:
+        raise HTTPException(
+            status_code=404,
+            detail="Case not found"
+        )
+
+    # --------------------------------------------------------
     # FIND PERSONS CONNECTED TO CASE
-    # -----------------------------
+    # --------------------------------------------------------
 
     person_links = db.query(PersonCase).filter(
         PersonCase.case_id == case_id
@@ -105,42 +206,46 @@ def read_case(
             "vehicles": person.vehicles
         })
 
-    # -----------------------------
+    # --------------------------------------------------------
     # FIND EVIDENCE
-    # -----------------------------
+    # --------------------------------------------------------
 
     evidence = db.query(Evidence).filter(
         Evidence.case_id == case_id
     ).all()
 
-    # -----------------------------
+    # --------------------------------------------------------
     # FIND INVESTIGATION NOTES
-    # -----------------------------
+    # --------------------------------------------------------
 
     investigations = db.query(Investigation).filter(
         Investigation.case_id == case_id
     ).all()
 
-    # -----------------------------
+    # --------------------------------------------------------
     # FIND TIMELINE
-    # -----------------------------
+    # --------------------------------------------------------
 
     timeline = db.query(Timeline).filter(
         Timeline.case_id == case_id
     ).order_by(
-        Timeline.event_time
+        Timeline.event_time.asc()
     ).all()
 
-    # -----------------------------
+    # --------------------------------------------------------
     # RETURN COMPLETE CASE
-    # -----------------------------
+    # --------------------------------------------------------
 
     return {
         "id": case.id,
         "case_number": case.case_number,
         "crime_type": case.crime_type,
         "status": case.status,
-        "location": case.location.strip(),
+        "location": (
+            case.location.strip()
+            if case.location
+            else ""
+        ),
         "incident_date": case.incident_date,
         "summary": case.summary,
         "created_at": case.created_at,
@@ -155,11 +260,14 @@ def read_case(
     }
 
 
-# -----------------------------
+# ============================================================
 # UPDATE CASE
-# -----------------------------
+# ============================================================
 
-@router.put("/{case_id}", response_model=CaseResponse)
+@router.put(
+    "/{case_id}",
+    response_model=CaseResponse
+)
 def edit_case(
     case_id: int,
     case: CaseCreate,
@@ -181,11 +289,13 @@ def edit_case(
     return updated_case
 
 
-# -----------------------------
+# ============================================================
 # DELETE CASE
-# -----------------------------
+# ============================================================
 
-@router.delete("/{case_id}")
+@router.delete(
+    "/{case_id}"
+)
 def remove_case(
     case_id: int,
     db: Session = Depends(get_db)

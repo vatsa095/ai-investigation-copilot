@@ -146,11 +146,28 @@ class InvestigationResponse(BaseModel):
 # TIMELINE
 # -----------------------------
 
+class TimelineCreate(BaseModel):
+    event_time: datetime
+    event_type: str
+    event: str
+    location: Optional[str] = None
+    latitude: Optional[str] = None
+    longitude: Optional[str] = None
+    source: Optional[str] = None
+    confidence: Optional[str] = "MEDIUM"
+
+
 class TimelineResponse(BaseModel):
     id: int
     case_id: int
     event_time: datetime
+    event_type: str
     event: str
+    location: Optional[str] = None
+    latitude: Optional[str] = None
+    longitude: Optional[str] = None
+    source: Optional[str] = None
+    confidence: Optional[str] = None
 
     class Config:
         from_attributes = True

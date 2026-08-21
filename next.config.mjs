@@ -1,4 +1,5 @@
 /** @type {import('next').NextConfig} */
+
 const nextConfig = {
   allowedDevOrigins: ["192.168.0.102"],
 
@@ -6,7 +7,7 @@ const nextConfig = {
     return [
       {
         source: "/api/cases/:path*",
-        destination: "http://127.0.0.1:8000/cases/:path*",
+        destination: "https://ai-investigation-copilot.onrender.com/cases/:path*",
       },
     ];
   },
