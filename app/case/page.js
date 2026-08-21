@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import dynamic from "next/dynamic";
 
@@ -11,8 +11,7 @@ const MovementMap = dynamic(
   }
 );
 
-export default function CasePage() {
-
+function CasePageContent() {
   const searchParams = useSearchParams();
 
   const [fileName, setFileName] = useState("");
@@ -20,37 +19,26 @@ export default function CasePage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
-  // ------------------------------------------------
+  // ---------------------------------------------
   // GET CASE ID FROM URL
-  //
-  // Example:
-  // /case?case_id=101
-  // ------------------------------------------------
+  // Example: /case?case_id=18
+  // ---------------------------------------------
 
-  const caseId =
-    searchParams.get("case_id");
+  const caseId = searchParams.get("case_id");
 
-
-  // ------------------------------------------------
+  // ---------------------------------------------
   // LOAD TIMELINE
-  // ------------------------------------------------
+  // ---------------------------------------------
 
   useEffect(() => {
-
     async function loadTimeline() {
-
-      // No case selected yet
       if (!caseId) {
-
         setLoading(false);
         setTimeline([]);
-
         return;
-
       }
 
       try {
-
         setLoading(true);
         setError("");
 
@@ -59,41 +47,35 @@ export default function CasePage() {
         );
 
         if (!response.ok) {
-
           throw new Error(
             "Failed to load movement timeline"
           );
-
         }
 
-        const data =
-          await response.json();
+        const data = await response.json();
 
         setTimeline(data);
 
       } catch (err) {
-
-        console.error(err);
+        console.error(
+          "Timeline loading error:",
+          err
+        );
 
         setError(
           "Could not load movement timeline."
         );
 
       } finally {
-
         setLoading(false);
-
       }
-
     }
 
     loadTimeline();
 
   }, [caseId]);
 
-
   return (
-
     <main className="min-h-screen bg-slate-100 p-10">
 
       {/* ================================================= */}
@@ -112,22 +94,16 @@ export default function CasePage() {
       <div className="bg-white rounded-xl shadow-lg mt-8 p-6">
 
         <h2 className="text-xl font-semibold text-black">
-
           {caseId
             ? `Case ${caseId}`
             : "No Case Selected"}
-
         </h2>
 
         {!caseId && (
-
           <p className="text-gray-600 mt-2">
-
             Open a case to view its investigation
             and movement timeline.
-
           </p>
-
         )}
 
       </div>
@@ -148,18 +124,14 @@ export default function CasePage() {
           id="firUpload"
           className="hidden"
           onChange={(e) => {
-
             if (
               e.target.files &&
               e.target.files.length > 0
             ) {
-
               setFileName(
                 e.target.files[0].name
               );
-
             }
-
           }}
         />
 
@@ -171,13 +143,9 @@ export default function CasePage() {
         </label>
 
         {fileName && (
-
           <p className="mt-4 text-green-700 font-medium">
-
             ✅ Selected File: {fileName}
-
           </p>
-
         )}
 
       </div>
@@ -188,7 +156,6 @@ export default function CasePage() {
       {/* ================================================= */}
 
       {caseId && (
-
         <div className="bg-white rounded-xl shadow-lg mt-8 p-8">
 
           <div className="flex items-center justify-between mb-5">
@@ -196,16 +163,12 @@ export default function CasePage() {
             <div>
 
               <h2 className="text-2xl font-semibold text-black">
-
                 🗺️ Post-Incident Movement
-
               </h2>
 
               <p className="text-gray-600 mt-1">
-
                 Documented locations associated with Case{" "}
                 {caseId}
-
               </p>
 
             </div>
@@ -216,26 +179,18 @@ export default function CasePage() {
           {/* LOADING */}
 
           {loading && (
-
             <div className="h-[500px] flex items-center justify-center text-gray-600">
-
               Loading movement data...
-
             </div>
-
           )}
 
 
           {/* ERROR */}
 
           {!loading && error && (
-
             <div className="h-[200px] flex items-center justify-center text-red-600">
-
               {error}
-
             </div>
-
           )}
 
 
@@ -244,11 +199,9 @@ export default function CasePage() {
           {!loading &&
             !error &&
             timeline.length > 0 && (
-
               <MovementMap
                 timeline={timeline}
               />
-
             )}
 
 
@@ -257,18 +210,13 @@ export default function CasePage() {
           {!loading &&
             !error &&
             timeline.length === 0 && (
-
               <div className="h-[200px] flex items-center justify-center text-gray-500">
-
                 No documented movement events
                 are available for this case.
-
               </div>
-
             )}
 
         </div>
-
       )}
 
 
@@ -282,11 +230,8 @@ export default function CasePage() {
           <div className="bg-white rounded-xl shadow-lg mt-8 p-8">
 
             <h2 className="text-2xl font-semibold text-black mb-6">
-
               Investigation Timeline
-
             </h2>
-
 
             <div className="space-y-4">
 
@@ -300,48 +245,31 @@ export default function CasePage() {
                   <div className="flex items-center gap-3">
 
                     <span className="font-semibold text-blue-800 uppercase">
-
                       {item.event_type}
-
                     </span>
 
                     <span className="text-gray-500">
-
                       {new Date(
                         item.event_time
                       ).toLocaleString()}
-
                     </span>
 
                   </div>
 
-
                   <p className="text-black mt-1">
-
                     {item.event}
-
                   </p>
 
-
                   {item.location && (
-
                     <p className="text-gray-600 mt-1">
-
                       📍 {item.location}
-
                     </p>
-
                   )}
 
-
                   {item.source && (
-
                     <p className="text-gray-500 text-sm mt-1">
-
                       Source: {item.source}
-
                     </p>
-
                   )}
 
                 </div>
@@ -355,7 +283,29 @@ export default function CasePage() {
         )}
 
     </main>
-
   );
-
 }
+
+
+// =====================================================
+// SUSPENSE WRAPPER
+// Required by Next.js for useSearchParams()
+// =====================================================
+
+function CasePage() {
+  return (
+    <Suspense
+      fallback={
+        <main className="min-h-screen bg-slate-100 p-10 flex items-center justify-center">
+          <p className="text-gray-600">
+            Loading case...
+          </p>
+        </main>
+      }
+    >
+      <CasePageContent />
+    </Suspense>
+  );
+}
+
+export default CasePage;
