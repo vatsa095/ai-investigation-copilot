@@ -306,19 +306,31 @@ def universal_search(
         ],
 
         # All relevant cases
-        "cases": [
-            {
-                "id": case.id,
-                "case_number": case.case_number,
-                "crime_type": case.crime_type,
-                "status": case.status,
-                "location": case.location,
-                "incident_date": case.incident_date,
-                "summary": case.summary
-            }
-            for case in all_cases
-        ],
+"cases": [
+    {
+        "id": case.id,
+        "case_number": case.case_number,
 
+        # Get person connected to this case
+        "suspect_name": (
+            db.query(Person.full_name)
+            .join(PersonCase, PersonCase.person_id == Person.id)
+            .filter(PersonCase.case_id == case.id)
+            .first()[0]
+            if db.query(PersonCase)
+                .filter(PersonCase.case_id == case.id)
+                .first()
+            else None
+        ),
+
+        "crime_type": case.crime_type,
+        "status": case.status,
+        "location": case.location,
+        "incident_date": case.incident_date,
+        "summary": case.summary
+    }
+    for case in all_cases
+],
         # Person → Case
         "person_cases": person_cases,
 
