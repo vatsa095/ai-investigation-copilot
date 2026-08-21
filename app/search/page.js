@@ -2,6 +2,14 @@
 
     import { useState, useEffect } from "react";
     import InvestigationGraph from "../components/InvestigationGraph";
+    import dynamic from "next/dynamic";
+
+const MovementMap = dynamic(
+  () => import("../components/MovementMap"),
+  {
+    ssr: false,
+  }
+);
 
     export default function SearchPage() {
     const [query, setQuery] = useState("");
@@ -11,6 +19,8 @@
     const [aiReport, setAiReport] = useState(null);
     const [aiLoading, setAiLoading] = useState(false);
     const [aiSuspect, setAiSuspect] = useState("");
+    const [suspectTimeline, setSuspectTimeline] = useState([]);
+    const [movementLoading, setMovementLoading] = useState(false);
     useEffect(() => {
     if (aiReport) {
         setTimeout(() => {
@@ -21,6 +31,122 @@
         }, 100);
     }
     }, [aiReport]);
+    useEffect(() => {
+  async function loadSuspectMovement() {
+    if (
+      !aiReport?.analysis?.case_ids ||
+      aiReport.analysis.case_ids.length === 0
+    ) {
+      setSuspectTimeline([]);
+      return;
+    }
+
+    try {
+      setMovementLoading(true);
+
+      const responses = await Promise.all(
+        aiReport.analysis.case_ids.map(async (rawCaseId) => {
+
+          // Support both:
+          // 101
+          // "101"
+          // "CASE101"
+
+          let caseId;
+
+          if (typeof rawCaseId === "number") {
+            caseId = rawCaseId;
+          } else {
+            const value = String(rawCaseId).trim();
+
+            if (value.toUpperCase().startsWith("CASE")) {
+              caseId = parseInt(
+                value.replace(/^CASE/i, ""),
+                10
+              );
+            } else {
+              caseId = parseInt(value, 10);
+            }
+          }
+
+          if (!Number.isInteger(caseId)) {
+            console.warn(
+              "Invalid case ID:",
+              rawCaseId
+            );
+            return [];
+          }
+
+          try {
+            const response = await fetch(
+              `/api/cases/${caseId}/timeline`
+            );
+
+            console.log(
+              "Timeline request:",
+              caseId,
+              response.status
+            );
+
+            if (!response.ok) {
+              console.warn(
+                "Timeline failed for case:",
+                caseId,
+                response.status
+              );
+              return [];
+            }
+
+            const data = await response.json();
+
+            return data.map((event) => ({
+              ...event,
+              case_reference:
+                `CASE${String(caseId).padStart(3, "0")}`,
+            }));
+
+          } catch (error) {
+            console.error(
+              "Timeline fetch failed:",
+              caseId,
+              error
+            );
+            return [];
+          }
+        })
+      );
+
+      const combined = responses.flat();
+
+      combined.sort(
+        (a, b) =>
+          new Date(a.event_time) -
+          new Date(b.event_time)
+      );
+
+      console.log(
+        "TOTAL SUSPECT MOVEMENT EVENTS:",
+        combined.length
+      );
+
+      setSuspectTimeline(combined);
+
+    } catch (error) {
+      console.error(
+        "Movement loading error:",
+        error
+      );
+
+      setSuspectTimeline([]);
+
+    } finally {
+      setMovementLoading(false);
+    }
+  }
+
+  loadSuspectMovement();
+
+}, [aiReport]);
 
     const handleSearch = async (e) => {
         e.preventDefault();
@@ -133,43 +259,106 @@
             {/* Results */}
             {results && (
             <div className="mt-8 space-y-6">
+              <section className="bg-white rounded-xl shadow-sm p-6">
+                <h2 className="text-2xl font-bold text-blue-900 mb-5">
+            👤 Persons
+            </h2>
+      {results.persons.map((person) => {
 
-                {/* Persons */}
-                {results.persons?.length > 0 && (
-                <section className="bg-white rounded-xl shadow-sm p-6">
+          const personCases =
+        results.person_cases?.filter(
+          (item) =>
+            item.person_id === person.id
+        ) || [];
 
-                    <h2 className="text-2xl font-bold text-blue-900 mb-5">
-                    👤 Persons
-                    </h2>
+        return (
+        <div
+          key={person.id}
+          className="border rounded-lg p-4 text-black mb-4"
+        >
 
-                    {results.persons.map((person) => (
-                    <div
-                        key={person.id}
-                        className="border rounded-lg p-4 text-black"
-                    >
-                        <p className="text-xl font-bold">
-                        {person.full_name}
-                        </p>
+          <p className="text-xl font-bold">
+            {person.full_name}
+          </p>
 
-                        {person.alias && (
-                        <p className="text-gray-600">
-                            Alias: {person.alias}
-                        </p>
-                        )}
+          {person.alias && (
+            <p className="text-gray-600">
+              Alias: {person.alias}
+            </p>
+          )}
 
-                        <button
-                        onClick={() =>
-                            analyzeWithAI(person.full_name)
-                        }
-                        className="mt-4 bg-purple-700 text-white px-5 py-2 rounded-lg hover:bg-purple-800"
-                        >
-                        🤖 Analyze with AI
-                        </button>
+          <div className="flex flex-wrap gap-3 mt-4">
+
+            <button
+              onClick={() =>
+                analyzeWithAI(person.full_name)
+              }
+              className="bg-purple-700 text-white px-5 py-2 rounded-lg hover:bg-purple-800"
+            >
+              🤖 Analyze with AI
+            </button>
+
+          </div>
+
+          {/* PERSON'S CASES */}
+
+          {personCases.length > 0 && (
+
+            <div className="mt-5">
+
+              <p className="font-semibold text-gray-800 mb-3">
+                Connected Cases
+              </p>
+
+              <div className="space-y-2">
+
+                {personCases.map((item) => (
+
+                  <div
+                    key={item.case_id}
+                    className="flex items-center justify-between border rounded-lg p-3 bg-gray-50"
+                  >
+
+                    <div>
+
+                      <p className="font-bold text-blue-800">
+                        {item.case_number}
+                      </p>
+
+                      <p className="text-sm text-gray-600">
+                        {item.crime_type}
+                        {" — "}
+                        {item.location}
+                      </p>
+
                     </div>
-                    ))}
+
+                    <button
+                      onClick={() => {
+                        window.location.href =
+                          `/case?case_id=${item.case_id}`;
+                      }}
+                      className="bg-blue-700 text-white px-4 py-2 rounded-lg hover:bg-blue-800"
+                    >
+                      🗺️ View Map
+                    </button>
+
+                  </div>
+
+                ))}
+
+              </div>
+
+            </div>
+
+          )}
+
+        </div>
+      );
+    })}
 
                 </section>
-                )}
+               
 
                 {/* Connected Cases */}
                 {results.person_cases?.length > 0 && (
@@ -354,37 +543,76 @@
                 )}
 
                 {/* Direct Cases */}
-                {results.cases.map((caseItem) => (
+
+{results.cases?.map((caseItem) => {
+
+  const casePerson =
+    results.person_cases?.find(
+      (item) =>
+        item.case_id === caseItem.id
+    );
+
+  return (
+
     <div
-        key={caseItem.id}
-        onClick={() => {
-        window.location.href = `/case/${caseItem.id}`;
-        }}
-        className="border rounded-lg p-5 mb-3 text-black cursor-pointer hover:bg-blue-50 hover:border-blue-400 transition"
+      key={caseItem.id}
+      onClick={() => {
+        window.location.href =
+          `/case?case_id=${caseItem.id}`;
+      }}
+      className="border rounded-lg p-5 mb-3 text-black cursor-pointer hover:bg-blue-50 hover:border-blue-400 transition"
     >
-        <div className="flex justify-between items-center">
+
+      <div className="flex justify-between items-center">
 
         <div>
-            <p className="font-bold text-blue-800 text-xl">
+
+          {/* CASE NUMBER */}
+
+          <p className="font-bold text-blue-800 text-xl">
             {caseItem.case_number}
-            </p>
+          </p>
 
-            <p className="mt-1">
-            {caseItem.crime_type} — {caseItem.location}
-            </p>
 
-            <p className="text-gray-500 mt-1">
-            Incident Date: {caseItem.incident_date}
-            </p>
+          {/* SUSPECT NAME */}
+
+          <p className="mt-1 text-lg font-semibold text-gray-900">
+  👤 {caseItem.suspect_name || "Unknown Suspect"}
+</p>
+
+
+          {/* CRIME + LOCATION */}
+
+          <p className="mt-1 text-gray-700">
+            {caseItem.crime_type}
+            {" — "}
+            {caseItem.location}
+          </p>
+
+
+          {/* DATE */}
+
+          <p className="text-gray-500 mt-1">
+            Incident Date:{" "}
+            {caseItem.incident_date}
+          </p>
+
         </div>
+
+
+        {/* VIEW CASE */}
 
         <span className="text-blue-700 font-semibold">
-            View Case →
+          View Case →
         </span>
 
-        </div>
+      </div>
+
     </div>
-    ))}
+
+  );
+
+})}
 
                 {/* AI Investigation Report */}
     {aiReport && (
@@ -479,146 +707,199 @@
   </section>
 )}
 
-    {/* Investigation Network */}
-    {aiReport?.analysis && (
-    <section className="bg-white rounded-xl shadow-lg p-6 border-2 border-blue-200">
+                    {/* Investigation Network */}
+                {aiReport?.analysis && (
+                  <section className="bg-white rounded-xl shadow-lg p-6 border-2 border-blue-200">
 
-        <h2 className="text-2xl font-bold text-blue-900 mb-2">
-        🔗 Investigation Network
-        </h2>
+                    <h2 className="text-2xl font-bold text-blue-900 mb-2">
+                      🔗 Investigation Network
+                    </h2>
 
-        <p className="text-gray-600 mb-5">
-        Visual relationship map showing connections between the
-        suspect, cases, phones, vehicles and locations.
-        </p>
+                    <p className="text-gray-600 mb-5">
+                      Visual relationship map showing connections between
+                      the suspect, cases, phones, vehicles and locations.
+                    </p>
 
-        <InvestigationGraph
-  analysis={aiReport.analysis}
-  assessment={aiReport.assessment}
-/>
-        {/* Case Connection Analysis */}
-{aiReport?.assessment?.connections?.length > 0 && (
-  <section className="bg-white rounded-xl shadow-lg p-6 border-2 border-blue-200 mt-6">
+                    <InvestigationGraph
+                      analysis={aiReport.analysis}
+                      assessment={aiReport.assessment}
+                    />
 
-    <h2 className="text-2xl font-bold text-blue-900 mb-2">
-      🔗 Case Connection Analysis
-    </h2>
+                    {/* Case Connection Analysis */}
 
-    <p className="text-gray-600 mb-5">
-      Cases are ranked according to shared investigative identifiers
-      and observed similarities.
-    </p>
+                    {aiReport?.assessment?.connections?.length > 0 && (
+                      <section className="bg-white rounded-xl shadow-lg p-6 border-2 border-blue-200 mt-6">
 
-    <div className="space-y-3">
+                        <h2 className="text-2xl font-bold text-blue-900 mb-2">
+                          🔗 Case Connection Analysis
+                        </h2>
 
-      {aiReport.assessment.connections.map(
-        (connection, index) => (
+                        <p className="text-gray-600 mb-5">
+                          Cases are ranked according to shared investigative
+                          identifiers and observed similarities.
+                        </p>
 
-          <div
-            key={index}
-            className="border rounded-xl p-4 flex items-center justify-between"
-          >
+                        <div className="space-y-3">
 
-            <div>
+                          {aiReport.assessment.connections.map(
+                            (connection, index) => (
 
-              <p className="font-bold text-blue-800">
-                CASE{String(connection.case_id).padStart(3, "0")}
-              </p>
+                              <div
+                                key={index}
+                                className="border rounded-xl p-4 flex items-center justify-between"
+                              >
 
-              <p className="text-gray-600">
-                {connection.crime_type}
-                {" — "}
-                {connection.location}
-              </p>
+                                <div>
 
-              <div className="flex flex-wrap gap-2 mt-2">
+                                  <p className="font-bold text-blue-800">
+                                    CASE{String(connection.case_id).padStart(3, "0")}
+                                  </p>
 
-                {connection.reasons.map(
-                  (reason, reasonIndex) => (
-                    <span
-                      key={reasonIndex}
-                      className="bg-gray-100 text-gray-700 px-2 py-1 rounded text-xs"
-                    >
-                      {reason}
-                    </span>
-                  )
+                                  <p className="text-gray-600">
+                                    {connection.crime_type}
+                                    {" — "}
+                                    {connection.location}
+                                  </p>
+
+                                  <div className="flex flex-wrap gap-2 mt-2">
+
+                                    {connection.reasons.map(
+                                      (reason, reasonIndex) => (
+
+                                        <span
+                                          key={reasonIndex}
+                                          className="bg-gray-100 text-gray-700 px-2 py-1 rounded text-xs"
+                                        >
+                                          {reason}
+                                        </span>
+
+                                      )
+                                    )}
+
+                                  </div>
+
+                                </div>
+
+                                <div className="text-right">
+
+                                  <span
+                                    className={`px-3 py-1 rounded-full text-sm font-bold ${
+                                      connection.strength === "HIGH"
+                                        ? "bg-red-100 text-red-700"
+                                        : connection.strength === "MEDIUM"
+                                        ? "bg-orange-100 text-orange-700"
+                                        : "bg-gray-100 text-gray-700"
+                                    }`}
+                                  >
+                                    {connection.strength}
+                                  </span>
+
+                                  <p className="text-2xl font-bold text-gray-800 mt-1">
+                                    {connection.score}
+                                  </p>
+
+                                  <p className="text-xs text-gray-500">
+                                    connection score
+                                  </p>
+
+                                </div>
+
+                              </div>
+
+                            )
+                          )}
+
+                        </div>
+
+                      </section>
+                    )}
+
+                  </section>
                 )}
 
-              </div>
+                {/* ================================================= */}
+                {/* SUSPECT MOVEMENT MAP */}
+                {/* ================================================= */}
 
-            </div>
+                {aiReport?.analysis?.case_ids?.length > 0 && (
+                  <section className="bg-white rounded-xl shadow-lg p-6 border-2 border-green-200 mt-6">
 
-            <div className="text-right">
+                    <h2 className="text-2xl font-bold text-green-800 mb-2">
+                      🗺️ Suspect Movement Map
+                    </h2>
 
-              <span
-                className={`px-3 py-1 rounded-full text-sm font-bold ${
-                  connection.strength === "HIGH"
-                    ? "bg-red-100 text-red-700"
-                    : connection.strength === "MEDIUM"
-                    ? "bg-orange-100 text-orange-700"
-                    : "bg-gray-100 text-gray-700"
-                }`}
-              >
-                {connection.strength}
-              </span>
+                    <p className="text-gray-600 mb-5">
+                      Documented movement events across the suspect's
+                      linked cases.
+                    </p>
 
-              <p className="text-2xl font-bold text-gray-800 mt-1">
-                {connection.score}
-              </p>
+                    {movementLoading && (
+                      <div className="h-[500px] flex items-center justify-center text-gray-600">
+                        Loading movement data...
+                      </div>
+                    )}
 
-              <p className="text-xs text-gray-500">
-                connection score
-              </p>
+                    {!movementLoading &&
+                      suspectTimeline.length > 0 && (
+                        <MovementMap
+                          timeline={suspectTimeline}
+                        />
+                      )}
 
-            </div>
+                    {!movementLoading &&
+                      suspectTimeline.length === 0 && (
+                        <div className="h-[200px] flex items-center justify-center text-gray-500">
+                          No documented movement data available.
+                        </div>
+                      )}
 
-          </div>
+                  </section>
+                )}
 
-        )
-      )}
+                {/* ================================================= */}
+                {/* AI LOADING */}
+                {/* ================================================= */}
 
-    </div>
-
-  </section>
-)}
-
-    </section>
-    )}
-
-                {/* AI Loading */}
                 {aiLoading && (
-                <section className="bg-purple-50 border border-purple-200 rounded-xl p-6">
+                  <section className="bg-purple-50 border border-purple-200 rounded-xl p-6">
+
                     <p className="text-purple-800 font-semibold">
-                    🤖 AI is analyzing {aiSuspect}...
+                      🤖 AI is analyzing {aiSuspect}...
                     </p>
 
                     <p className="text-gray-600 mt-2">
-                    Checking linked cases, phone numbers, vehicles,
-                    crime types and locations.
+                      Checking linked cases, phone numbers, vehicles,
+                      crime types and locations.
                     </p>
-                </section>
+
+                  </section>
                 )}
 
-                {/* No Results */}
+                {/* ================================================= */}
+                {/* NO RESULTS */}
+                {/* ================================================= */}
+
                 {results.persons?.length === 0 &&
-                results.person_cases?.length === 0 &&
-                results.phones?.length === 0 &&
-                results.phone_cases?.length === 0 &&
-                results.vehicles?.length === 0 &&
-                results.vehicle_cases?.length === 0 &&
-                results.cases?.length === 0 && (
+                  results.person_cases?.length === 0 &&
+                  results.phones?.length === 0 &&
+                  results.phone_cases?.length === 0 &&
+                  results.vehicles?.length === 0 &&
+                  results.vehicle_cases?.length === 0 &&
+                  results.cases?.length === 0 && (
 
-                <div className="bg-white p-8 rounded-xl shadow-sm text-center">
-                    <p className="text-gray-600 text-lg">
-                    No matching records found.
-                    </p>
-                </div>
-                )}
+                    <div className="bg-white p-8 rounded-xl shadow-sm text-center">
 
-            </div>
+                      <p className="text-gray-600 text-lg">
+                        No matching records found.
+                      </p>
+
+                    </div>
+                  )}
+
+              </div>
             )}
 
-        </div>
+          </div>
         </main>
-    );
-    }
+      );
+}

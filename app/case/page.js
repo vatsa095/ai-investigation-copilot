@@ -1,10 +1,11 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import dynamic from "next/dynamic";
 
 const MovementMap = dynamic(
- () => import("../components/MovementMap"),
+  () => import("../components/MovementMap"),
   {
     ssr: false,
   }
@@ -12,37 +13,61 @@ const MovementMap = dynamic(
 
 export default function CasePage() {
 
+  const searchParams = useSearchParams();
+
   const [fileName, setFileName] = useState("");
-
   const [timeline, setTimeline] = useState([]);
-
   const [loading, setLoading] = useState(true);
-
   const [error, setError] = useState("");
 
-  // TEMPORARY TEST CASE
-  // We will make this dynamic later.
-  const caseId = 101;
+  // ------------------------------------------------
+  // GET CASE ID FROM URL
+  //
+  // Example:
+  // /case?case_id=101
+  // ------------------------------------------------
+
+  const caseId =
+    searchParams.get("case_id");
+
+
+  // ------------------------------------------------
+  // LOAD TIMELINE
+  // ------------------------------------------------
 
   useEffect(() => {
 
     async function loadTimeline() {
 
+      // No case selected yet
+      if (!caseId) {
+
+        setLoading(false);
+        setTimeline([]);
+
+        return;
+
+      }
+
       try {
 
         setLoading(true);
+        setError("");
 
         const response = await fetch(
           `/api/cases/${caseId}/timeline`
         );
 
         if (!response.ok) {
+
           throw new Error(
             "Failed to load movement timeline"
           );
+
         }
 
-        const data = await response.json();
+        const data =
+          await response.json();
 
         setTimeline(data);
 
@@ -59,11 +84,13 @@ export default function CasePage() {
         setLoading(false);
 
       }
+
     }
 
     loadTimeline();
 
-  }, []);
+  }, [caseId]);
+
 
   return (
 
@@ -76,6 +103,34 @@ export default function CasePage() {
       <h1 className="text-4xl font-bold text-blue-900">
         Case Investigation
       </h1>
+
+
+      {/* ================================================= */}
+      {/* CURRENT CASE */}
+      {/* ================================================= */}
+
+      <div className="bg-white rounded-xl shadow-lg mt-8 p-6">
+
+        <h2 className="text-xl font-semibold text-black">
+
+          {caseId
+            ? `Case ${caseId}`
+            : "No Case Selected"}
+
+        </h2>
+
+        {!caseId && (
+
+          <p className="text-gray-600 mt-2">
+
+            Open a case to view its investigation
+            and movement timeline.
+
+          </p>
+
+        )}
+
+      </div>
 
 
       {/* ================================================= */}
@@ -132,80 +187,89 @@ export default function CasePage() {
       {/* MOVEMENT MAP */}
       {/* ================================================= */}
 
-      <div className="bg-white rounded-xl shadow-lg mt-8 p-8">
+      {caseId && (
 
-        <div className="flex items-center justify-between mb-5">
+        <div className="bg-white rounded-xl shadow-lg mt-8 p-8">
 
-          <div>
+          <div className="flex items-center justify-between mb-5">
 
-            <h2 className="text-2xl font-semibold text-black">
-              🗺️ Post-Incident Movement
-            </h2>
+            <div>
 
-            <p className="text-gray-600 mt-1">
-              Documented locations associated with Case {caseId}
-            </p>
+              <h2 className="text-2xl font-semibold text-black">
 
-          </div>
+                🗺️ Post-Incident Movement
 
-        </div>
+              </h2>
 
+              <p className="text-gray-600 mt-1">
 
-        {/* LOADING */}
+                Documented locations associated with Case{" "}
+                {caseId}
 
-        {loading && (
+              </p>
 
-          <div className="h-[500px] flex items-center justify-center text-gray-600">
-
-            Loading movement data...
+            </div>
 
           </div>
 
-        )}
 
+          {/* LOADING */}
 
-        {/* ERROR */}
+          {loading && (
 
-        {!loading && error && (
+            <div className="h-[500px] flex items-center justify-center text-gray-600">
 
-          <div className="h-[200px] flex items-center justify-center text-red-600">
-
-            {error}
-
-          </div>
-
-        )}
-
-
-        {/* MAP */}
-
-        {!loading &&
-          !error &&
-          timeline.length > 0 && (
-
-            <MovementMap
-              timeline={timeline}
-            />
-
-          )}
-
-
-        {/* NO EVENTS */}
-
-        {!loading &&
-          !error &&
-          timeline.length === 0 && (
-
-            <div className="h-[200px] flex items-center justify-center text-gray-500">
-
-              No documented movement events
-              are available for this case.
+              Loading movement data...
 
             </div>
 
           )}
 
-      </div>
+
+          {/* ERROR */}
+
+          {!loading && error && (
+
+            <div className="h-[200px] flex items-center justify-center text-red-600">
+
+              {error}
+
+            </div>
+
+          )}
+
+
+          {/* MAP */}
+
+          {!loading &&
+            !error &&
+            timeline.length > 0 && (
+
+              <MovementMap
+                timeline={timeline}
+              />
+
+            )}
+
+
+          {/* NO EVENTS */}
+
+          {!loading &&
+            !error &&
+            timeline.length === 0 && (
+
+              <div className="h-[200px] flex items-center justify-center text-gray-500">
+
+                No documented movement events
+                are available for this case.
+
+              </div>
+
+            )}
+
+        </div>
+
+      )}
 
 
       {/* ================================================= */}
@@ -293,4 +357,5 @@ export default function CasePage() {
     </main>
 
   );
+
 }

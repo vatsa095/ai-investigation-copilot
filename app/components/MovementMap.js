@@ -237,6 +237,11 @@ export default function MovementMap({ timeline = [] }) {
               ${confidence}
             </p>
 
+            <p style="margin: 4px 0;">
+  <b>Case:</b>
+  ${item.case_reference || item.case_id || "Unknown"}
+</p>
+
           </div>
         `);
 
